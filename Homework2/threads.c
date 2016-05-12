@@ -46,11 +46,14 @@ void *consumer(void *param){
 	}
 }
 
+void print_buffer();
 void *monitoring(void *param){
 	int ack_cnt = 0;
 	while(true){
+		sleep(1);
 		sem_post(&monitor);
 		sem_wait(&request);
 		printf("ACK NO: %d -> couunt: %d\n", ack_cnt++, count);
+		print_buffer();
 	}
 }
