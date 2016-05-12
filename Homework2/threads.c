@@ -7,7 +7,7 @@ int remove_item(buffer_item *);
 int count;
 
 void *producer(void *param){
-	printf("producer thread is created!\n");
+	//printf("producer thread is created!\n");
 	buffer_item item;
 	while(true){
 		/* sleep for a random period of time */
@@ -29,7 +29,7 @@ void *producer(void *param){
 
 void *consumer(void *param){
 	buffer_item item;
-	printf("consumer thread is created!\n");
+	//printf("consumer thread is created!\n");
 	while(true){
 		/* sleep for a random period of time */
 		//pthread_mutex_lock(&mutex);
@@ -54,6 +54,6 @@ void *monitoring(void *param){
 		sem_post(&monitor);
 		sem_wait(&request);
 		printf("ACK NO: %d -> couunt: %d\n", ack_cnt++, count);
-		print_buffer();
+		//print_buffer();
 	}
 }
