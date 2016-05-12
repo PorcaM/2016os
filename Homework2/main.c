@@ -4,6 +4,7 @@
 
 void *producer(void *);
 void *consumer(void *);
+void *monitoring(void *);
 
 int main(int argc, char *argv[]){
 	int	i;
@@ -14,6 +15,9 @@ int main(int argc, char *argv[]){
 	/* 2. Initialize buffer */
 	sem_init(&empty, 0, BUFFER_SIZE);
 	sem_init(&full, 0, 0);
+	sem_init(&monitor, 0, 1);
+	sem_init(&request, 0, 0);
+	pthread_create(&tid, &attr, monitoring, NULL);
 	/* 3. Create producer thread(s) */
 	for (i = 0; i < atoi(argv[2]); i++)
 		pthread_create(&tid, &attr, producer, NULL);

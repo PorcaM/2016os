@@ -9,3 +9,5 @@ typedef int buffer_item;
 pthread_mutex_t mutex;
 sem_t empty;
 sem_t full;
+sem_t monitor;
+sem_t request;
