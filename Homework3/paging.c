@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include "paging.h"
@@ -45,40 +46,44 @@ tlb_attr	tlb[TLB_ENTRY_SIZE];
 
 stack 		tlb_stack, ft_stack;
 
+int		lookup_pt (int, int*);
+int		lookup_tlb (int, int*);
+int		empty_tlb (int*);
+int		empty_frame (int*);
+void	update_tlb (int, int);
+void	update_ft (int, int*);
+void	update_pt (int, int);
+
 void pag_init(){
 	tlb_hit = tlb_miss = pt_hit = pt_miss = 0;
-	stk_init (tlb_stack);
-	stk_init (ft_stack);
+	stk_init (&tlb_stack);
+	stk_init (&ft_stack);
 	memset(pt, 0, sizeof(pt));
 	memset(tlb, 0, sizeof(tlb));
 	return;
 }
 
-int addr_tr(data_t page_addr){
-	data_t	ret;
-	ret.whole = 0;
+int addr_tr(int page_addr){
+	data_t	ret; 
+	ret.whole = page_addr;
 	int	temp, fn, pn, offset;
-	pn				= page_addr.bytes.b2;
-	offset			= page_addr.bytes.b1;
+	printf ("===================================\n");
+	pn				= ret.bytes.b2;
+	offset			= ret.bytes.b1;
 	printf("page#: %d, offset: %d\n", pn, offset);
-	if ((temp = lookup_tlb (pn, fn)) != -1){
+	if ((temp = lookup_tlb (pn, &fn)) != -1){
 		/*tlb hit*/
-		
+		printf("CASE: TLB HIT\n");	
 	}
-	else if ((temp = lookup_pt (pn, fn)) != -1){
+	else if ((temp = lookup_pt (pn, &fn)) != -1){
 		/*page table hit*/
 		update_tlb (pn, fn);
+		printf("CASE: PAGE TABLE HIT\n");
 	}
 	else{
 		/*trap*/
-		if((temp = empty_frame (fn)) == -1){
-			/*No empty frame*/
-			fn = get_victim ();
-		}
-		else{
-			/*temp is empty frame number*/
-		}
-		update_ft (pn, fn);
+		printf("CASE: PAGE FAULT\n");
+		update_ft (pn, &fn);
 		update_tlb (pn, fn);
 		update_pt (pn, fn);
 	}
@@ -87,17 +92,17 @@ int addr_tr(data_t page_addr){
 	return ret.whole;
 }
 
-int lookup_tlb(int pn, int &ret){
+int lookup_tlb(int pn, int *ret){
 	int		i;
 	bool	hit = false;
 	for (i = 0; i < TLB_ENTRY_SIZE; i++){
-		if (tlb[i].valid && tlb[i].page == pn){
-			ret		= tlb[i].fn;
-			flag	= true;
+		if (tlb[i].valid && tlb[i].pn == pn){
+			*ret	= tlb[i].fn;
+			hit		= true;
 		}
 	}
 	if (hit){
-		reff (tlb_stack, i);
+		reff (&tlb_stack, i);
 		tlb_hit++;
 		return 0;
 	}
@@ -105,10 +110,10 @@ int lookup_tlb(int pn, int &ret){
 	return -1;
 }
 
-int lookup_pt(int pn, int &ret){
+int lookup_pt(int pn, int *ret){
 	if (pt[pn].valid){
-		ret = pt[pn].fn;
-		reff (ft_stack, ret);
+		*ret = pt[pn].fn;
+		reff (&ft_stack, *ret);
 		pt_hit++;
 		return 0;
 	}
@@ -116,22 +121,26 @@ int lookup_pt(int pn, int &ret){
 	return -1;
 }
 
-int empty_frame(int &ret){
+int empty_frame(int *ret){
 	int i;
+	printf ("\tFUNC: EMPTY_FRAME called\n");
 	for (i = 0; i < FRAME_ENTRY_SIZE; i++){
 		if (!ft[i].filled){
-			ret = i;
+			*ret = i;
+			ft[i].filled = true;
+			printf ("\tFUNC: EMPTY_FRAME return 0\n");
 			return 0;
 		}
 	}
+	printf("\tFUNC: EMPTY_FRAME return -1\n");
 	return -1;	// no empty frame
 }
 
-int empty_tlb(int &ret){
+int empty_tlb(int *ret){
 	int i;
 	for (i = 0; i < FRAME_ENTRY_SIZE; i++){
 		if (!tlb[i].valid){
-			ret = i;
+			*ret = i;
 			return 0;
 		}
 	}
@@ -140,29 +149,47 @@ int empty_tlb(int &ret){
 
 void update_tlb(int pn, int fn){
 	int it, temp;
-	if ((temp = empty_tlb (it)) == -1){
-		it = victim (tlb_stack);
+	printf ("\tFUNC: UPDATE_TLB called\n");
+	if ((temp = empty_tlb (&it)) == -1){
+		it = victim (&tlb_stack);
 	}
-	tlb[it].page	= pn;
-	tlb[it].frame	= fn;
+	tlb[it].pn		= pn;
+	tlb[it].fn		= fn;
 	tlb[it].valid	= true;
-	reff (tlb_stack, it);
+	reff (&tlb_stack, it);
+	printf ("tlb[%d] = (%d, %d)\n", it, pn, fn);
+	printf ("\tFUNC: UPDATE_TLB return\n");
 	return;
 }
 
-void update_ft(int pn, int fn){
+void update_ft(int pn, int *ret){
+	printf ("\tFUNC: UPDATE_FT called\n");
+	printf("pn: %d\n", pn);
 	int it, temp;
-	if ((temp = empty_frame(it)) == -1){
-		it = victim (ft_stack);
+	if ((temp = empty_frame(&it)) == -1){
+		it = victim (&ft_stack);
+		printf("it: %d\n", it);
 	}
+	printf ("it: %d\n", it);
 	pt[pn].valid = false;
-	ft[it].page = pn;
-	reff (ft_stack, it);
+	ft[it].pn = pn;
+	reff (&ft_stack, it);
+	*ret = it;
+	printf ("ft[%d] = (%d)\n", it, pn);
+	printf ("\tFUNC: UPDATE_FT return\n");
 	return;
 }
 
 void update_pt(int pn, int fn){
 	pt[pn].valid = true;
-	pt[pn].frame = fn;
+	pt[pn].fn = fn;
+	printf ("pn[%d] = (%d)\n", pn, fn);
 	return;
+}
+
+void tlb_hr(){
+	printf("Whole: %d, hit: %d\n", tlb_hit+tlb_miss, tlb_hit);
+}
+void lru_hr(){
+	printf("Whole: %d, hit: %d\n", pt_hit+pt_miss, pt_hit);
 }

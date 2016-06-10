@@ -11,7 +11,7 @@ $(PROG): $(OBJS)
 
 main.o: paging.h main.c
 paging.o: paging.h LRU_stack.h paging.c
-LRU_stack.o: LRU_stack.h LRU_stack.c
+LRU_stack.o: paging.h LRU_stack.h LRU_stack.c
 
 clean:
 	rm $(OBJS) 

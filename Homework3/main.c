@@ -29,6 +29,9 @@ int main (int argc, char **argv){
 		fprintf (output, "%d ", phys_addr);
 	}
 
+	tlb_hr();
+	lru_hr();
+
 	fclose (file);
 	
 	return 0;
