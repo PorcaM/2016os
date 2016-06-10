@@ -1,4 +1,6 @@
 #include <string.h>
+#include <stdbool.h>
+#include "paging.h"
 #include "LRU_stack.h"
 
 #define PHYSICAL_SPACE_SIZE	32768
@@ -53,30 +55,28 @@ void pag_init(){
 }
 
 int addr_tr(data_t page_addr){
-	data_t	ret		= 0;
+	data_t	ret;
+	ret.whole = 0;
 	int	temp, fn, pn, offset;
 	pn				= page_addr.bytes.b2;
 	offset			= page_addr.bytes.b1;
 	printf("page#: %d, offset: %d\n", pn, offset);
-	if ((temp = lookup_tlb (pn)) != -1){
+	if ((temp = lookup_tlb (pn, fn)) != -1){
 		/*tlb hit*/
-		fn = temp;
+		
 	}
-	else if ((temp = lookup_pt (pn)) != -1){
+	else if ((temp = lookup_pt (pn, fn)) != -1){
 		/*page table hit*/
-		fn = temp;
-		update_tlb (pn);
+		update_tlb (pn, fn);
 	}
 	else{
 		/*trap*/
-		if((temp = empty_frame ()) == -1){
+		if((temp = empty_frame (fn)) == -1){
 			/*No empty frame*/
-			temp = get_victim ();
-			fn = temp;
+			fn = get_victim ();
 		}
 		else{
 			/*temp is empty frame number*/
-			fn = temp;
 		}
 		update_ft (pn, fn);
 		update_tlb (pn, fn);
@@ -84,7 +84,7 @@ int addr_tr(data_t page_addr){
 	}
 	ret.bytes.b2 = fn;
 	ret.bytes.b1 = offset;
-	return ret;
+	return ret.whole;
 }
 
 int lookup_tlb(int pn, int &ret){

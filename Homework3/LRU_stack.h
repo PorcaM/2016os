@@ -7,6 +7,6 @@ typedef struct {
 	sdt *head, *tail;
 } stack;
 
-void stk_init (stack &);
-int victim (stack &);
-void reff (stack &, int);
+void stk_init (stack);
+int victim (stack);
+void reff (stack, int);

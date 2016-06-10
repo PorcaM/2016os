@@ -1,4 +1,6 @@
-void stk_init(stack &stk){
+#include "LRU_stack.h"
+
+void stk_init(stack& stk){
 	stk.head = stk.tail = NULL;
 	return;
 }
