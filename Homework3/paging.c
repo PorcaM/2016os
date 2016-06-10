@@ -1,4 +1,5 @@
 #include <string.h>
+#include "LRU_stack.h"
 
 #define PHYSICAL_SPACE_SIZE	32768
 #define PAGE_SIZE			256
@@ -40,8 +41,12 @@ pt_attr		pt[PAGE_ENTRY_SIZE];
 ft_attr		ft[FRAME_ENTRY_SIZE];
 tlb_attr	tlb[TLB_ENTRY_SIZE];
 
+stack 		tlb_stack, ft_stack;
+
 void pag_init(){
 	tlb_hit = tlb_miss = pt_hit = pt_miss = 0;
+	stk_init (tlb_stack);
+	stk_init (ft_stack);
 	memset(pt, 0, sizeof(pt));
 	memset(tlb, 0, sizeof(tlb));
 	return;
@@ -82,9 +87,8 @@ int addr_tr(data_t page_addr){
 	return ret;
 }
 
-byte lookup_tlb(byte pn){
+int lookup_tlb(int pn, int &ret){
 	int		i;
-	byte	ret = -1;
 	bool	hit = false;
 	for (i = 0; i < TLB_ENTRY_SIZE; i++){
 		if (tlb[i].valid && tlb[i].page == pn){
@@ -92,19 +96,27 @@ byte lookup_tlb(byte pn){
 			flag	= true;
 		}
 	}
-	if (hit)	tlb_hit++;
-	else		tlb_miss++;
-	return ret;
+	if (hit){
+		reff (tlb_stack, i);
+		tlb_hit++;
+		return 0;
+	}
+	tlb_miss++;
+	return -1;
 }
 
-byte lookup_pt(byte pn){
-	if (pt[pn].valid)
-		return pt[pn].frame;
-	else
-		return -1;
+int lookup_pt(int pn, int &ret){
+	if (pt[pn].valid){
+		ret = pt[pn].fn;
+		reff (ft_stack, ret);
+		pt_hit++;
+		return 0;
+	}
+	pt_miss++;
+	return -1;
 }
 
-int empty_frame(byte &ret){
+int empty_frame(int &ret){
 	int i;
 	for (i = 0; i < FRAME_ENTRY_SIZE; i++){
 		if (!ft[i].filled){
@@ -134,6 +146,7 @@ void update_tlb(int pn, int fn){
 	tlb[it].page	= pn;
 	tlb[it].frame	= fn;
 	tlb[it].valid	= true;
+	reff (tlb_stack, it);
 	return;
 }
 
@@ -144,6 +157,7 @@ void update_ft(int pn, int fn){
 	}
 	pt[pn].valid = false;
 	ft[it].page = pn;
+	reff (ft_stack, it);
 	return;
 }
 
